@@ -1,16 +1,3 @@
-/*
-Copyright 2025 Manifold Tech Ltd.(www.manifoldtech.com.co)
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 #include "pointcloud_depth_converter.hpp"
 #include <cmath>
 #include <iostream>
@@ -52,7 +39,6 @@ void PointCloudToDepthConverter::createDistortionMaps()
     map_x_ = cv::Mat::zeros(params_.image_height, params_.image_width, CV_32FC1);
     map_y_ = cv::Mat::zeros(params_.image_height, params_.image_width, CV_32FC1);
 
-
     for (int u = 0; u < params_.image_width; ++u)
     {
         for (int v = 0; v < params_.image_height; ++v)
@@ -77,6 +63,7 @@ void PointCloudToDepthConverter::createDistortionMaps()
 
     inv_map_x_ = cv::Mat::zeros(params_.image_height, params_.image_width, CV_32FC1);
     inv_map_y_ = cv::Mat::zeros(params_.image_height, params_.image_width, CV_32FC1);
+
     for (int u = 0; u < params_.image_width; ++u)
     {
         for (int v = 0; v < params_.image_height; ++v)
@@ -291,8 +278,9 @@ cv::Mat PointCloudToDepthConverter::customResize(const cv::Mat& src, const cv::S
     
     return dst;
 }
-pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredCloud(
-    const cv::Mat &depth_img, const cv::Mat &color_img)
+
+// 输入深度图和RGB图并输出彩色的渲染点云
+pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredCloud(const cv::Mat &depth_img, const cv::Mat &color_img)
 {
     cv::Mat depth_undistorted, color_undistorted;
     depth_undistorted = depth_img.clone();

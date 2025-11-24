@@ -1,15 +1,4 @@
-/*
-Copyright 2025 Manifold Tech Ltd.(www.manifoldtech.com.co)
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// 对总数据流的调度和管理
 
 #include "host_sdk_sample.h"
 #include "yaml_parser.h"
@@ -718,10 +707,10 @@ void clear_all_queues() {
     g_has_rgb = false;
 }
 
-// Lidar data callback
 static void lidar_data_callback(const lidar_data_t *data, void *user_data)
 {
-    // If device is not connected, ignore all data
+
+    // 防御性编程：设备未连接，提前退出
     if (!deviceConnected) {
         return;
     }
@@ -731,6 +720,7 @@ static void lidar_data_callback(const lidar_data_t *data, void *user_data)
         printf("Invalid device handle or data.\n");
         return;
     }
+
     imu_convert_data_t *imudata = nullptr;
     lidar_device_status_t *dev_info_data;
     
@@ -1636,10 +1626,7 @@ int main(int argc, char *argv[])
         g_param_monitor_thread.join();
     }
     
-    
     // lidar_system_deinit();
-
-
 
     return 0;
 }
