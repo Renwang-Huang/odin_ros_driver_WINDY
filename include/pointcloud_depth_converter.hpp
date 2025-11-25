@@ -7,6 +7,9 @@
 #include <Eigen/Dense>
 #include <vector>
 
+using PointCloudXYZ = pcl::PointCloud<pcl::PointXYZ>;
+using PointCloudXYZRGB = pcl::PointCloud<pcl::PointXYZRGB>;
+
 class PointCloudToDepthConverter
 {
 public:
@@ -44,6 +47,8 @@ public:
 private:
     CameraParams params_;
 
+    double blind_rgb_points = 0.1;
+
     Eigen::Matrix3d K_;
     Eigen::Matrix3d Kl_;
     Eigen::Matrix4d K_4x4_;
@@ -62,8 +67,16 @@ private:
 
     cv::Mat postProcessDepthImage(const cv::Mat &depth_img);
 
-    pcl::PointCloud<pcl::PointXYZRGB> generateColoredCloud(const cv::Mat &depth_img,
+    // pcl::PointCloud<pcl::PointXYZRGB> generateColoredCloud(const cv::Mat &depth_img,
+    //                                                        const cv::Mat &color_img);
+
+    pcl::PointCloud<pcl::PointXYZRGB> generateColoredCloud(const pcl::PointCloud<pcl::PointXYZ> &cloud_in_cam, 
                                                            const cv::Mat &color_img);
+    
+    Eigen::Vector3f getInterpolatedPixel(cv::Mat img, 
+                                         Eigen::Vector2d pc);
+    
+    PointCloudXYZ::Ptr pcl_wait_pub;
 
     std::pair<bool, std::string> validateInputs(const pcl::PointCloud<pcl::PointXYZ> &cloud,
                                                 const cv::Mat &image);

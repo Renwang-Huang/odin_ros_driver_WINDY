@@ -110,7 +110,7 @@ PointCloudToDepthConverter::ProcessResult PointCloudToDepthConverter::processClo
 
         cv::Mat processed_depth = postProcessDepthImage(depth_img);
 
-        pcl::PointCloud<pcl::PointXYZRGB> colored_cloud = generateColoredCloud(processed_depth, image);
+        pcl::PointCloud<pcl::PointXYZRGB> colored_cloud = generateColoredCloud(cloud_in_cam, image);
 
         result.depth_image = processed_depth;
         result.colored_cloud = colored_cloud;
@@ -279,60 +279,213 @@ cv::Mat PointCloudToDepthConverter::customResize(const cv::Mat& src, const cv::S
     return dst;
 }
 
-// 输入深度图和RGB图并输出彩色的渲染点云
-pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredCloud(const cv::Mat &depth_img, const cv::Mat &color_img)
-{
-    cv::Mat depth_undistorted, color_undistorted;
-    depth_undistorted = depth_img.clone();
-    cv::remap(color_img, color_undistorted, inv_map_x_, inv_map_y_, cv::INTER_LINEAR);
+// // depth_img包含的是相机坐标系下的深度值
+// pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredCloud(const cv::Mat &depth_img, const cv::Mat &color_img)
+// {
+//     cv::Mat depth_undistorted, color_undistorted;
+//     depth_undistorted = depth_img.clone();
+   
+//     // 对输入图像进行畸变矫正
+//     cv::remap(color_img, color_undistorted, inv_map_x_, inv_map_y_, cv::INTER_LINEAR);
 
-    pcl::PointCloud<pcl::PointXYZRGB> cloud_colored;
+//     pcl::PointCloud<pcl::PointXYZRGB> cloud_colored;
 
-    Eigen::Matrix4d Tlc = params_.Tcl.inverse();
+//     Eigen::Matrix4d Tlc = params_.Tcl.inverse();
 
-    for (int v = 0; v < depth_undistorted.rows; v += params_.point_sampling_rate)
-    {
-        for (int u = 0; u < depth_undistorted.cols; u += params_.point_sampling_rate)
-        {
-            float depth = depth_undistorted.at<float>(v, u);
-            if (depth > 0.1f && depth < 100.0f) 
-            {
-                double y_cam = (v - params_.v0) * depth / params_.A22;
-                double x_cam = ((u - params_.u0) * depth  - params_.A12 * y_cam)/ params_.A11;
+//     for (int v = 0; v < depth_undistorted.rows; v += params_.point_sampling_rate)
+//     {
+//         for (int u = 0; u < depth_undistorted.cols; u += params_.point_sampling_rate)
+//         {
+//             float depth = depth_undistorted.at<float>(v, u);
+//             if (depth > 0.1f && depth < 100.0f) 
+//             {
+//                 double y_cam = (v - params_.v0) * depth / params_.A22;
+//                 double x_cam = ((u - params_.u0) * depth  - params_.A12 * y_cam)/ params_.A11;
                 
-                double z_cam = depth;
+//                 double z_cam = depth;
 
-                Eigen::Vector4d point_cam(x_cam, y_cam, z_cam, 1.0);
+//                 Eigen::Vector4d point_cam(x_cam, y_cam, z_cam, 1.0);
 
-                Eigen::Vector4d point_lidar = Tlc * point_cam;
+//                 Eigen::Vector4d point_lidar = Tlc * point_cam;
 
-                pcl::PointXYZRGB point;
-                point.x = static_cast<float>(point_lidar[0]);
-                point.y = static_cast<float>(point_lidar[1]);
-                point.z = static_cast<float>(point_lidar[2]);
+//                 pcl::PointXYZRGB point;
+//                 point.x = static_cast<float>(point_lidar[0]);
+//                 point.y = static_cast<float>(point_lidar[1]);
+//                 point.z = static_cast<float>(point_lidar[2]);
 
-                if (u < color_undistorted.cols && v < color_undistorted.rows)
-                {
-                    cv::Vec3b color = color_undistorted.at<cv::Vec3b>(v, u);
-                    point.b = color[0]; 
-                    point.g = color[1];
-                    point.r = color[2];
-                }
-                else
-                {
-                    point.r = point.g = point.b = 255;
-                }
+//                 if (u < color_undistorted.cols && v < color_undistorted.rows)
+//                 {
+//                     cv::Vec3b color = color_undistorted.at<cv::Vec3b>(v, u);
+//                     point.b = color[0]; 
+//                     point.g = color[1];
+//                     point.r = color[2];
+//                 }
+//                 else
+//                 {
+//                     point.r = point.g = point.b = 255;
+//                 }
 
-                cloud_colored.points.push_back(point);
-            }
+//                 cloud_colored.points.push_back(point);
+//             }
+//         }
+//     }
+
+//     cloud_colored.width = cloud_colored.points.size();
+//     cloud_colored.height = 1;
+//     cloud_colored.is_dense = false;
+
+//     return cloud_colored;
+// }
+
+// // pcl::PointCloud<pcl::PointXYZ> cloud_in_cam;
+// // pcl::transformPointCloud(cloud, cloud_in_cam, Kcl_);
+// cv::Mat PointCloudToDepthConverter::projectCloudToDepth(const pcl::PointCloud<pcl::PointXYZ> &cloud_in_cam)
+// {
+
+//     // 从左到右，列索引是X坐标，对应width
+//     // 从上到下，行索引是Y坐标，对应height
+//     // scaled_width_ = static_cast<int>(params_.image_width / params_.scale);
+//     // scaled_height_ = static_cast<int>(params_.image_height / params_.scale);
+//     cv::Mat depth_img = cv::Mat::zeros(scaled_height_, scaled_width_, CV_32FC1);
+
+//     for (const auto &camera_point : cloud_in_cam)
+//     {
+
+//         // Z前X右Y下
+//         if (camera_point.z <= 0)
+//             continue; 
+        
+//         // 透视投影公式，归一化投影标出像素矩阵
+//         int u = static_cast<int>(std::round(camera_point.x / camera_point.z));
+//         int v = static_cast<int>(std::round(camera_point.y / camera_point.z));
+
+//         if (u >= 0 && u < scaled_width_ && v >= 0 && v < scaled_height_)
+//         {
+//             depth_img.at<float>(v, u) = static_cast<float>(camera_point.z);
+            
+//             // 对深度图做领域填充防止出现空值
+//             for (int du = -1; du <= 1; ++du)
+//             {
+//                 for (int dv = -1; dv <= 1; ++dv)
+//                 {
+//                     int nu = u + du;
+//                     int nv = v + dv;
+//                     if (nu >= 0 && nu < scaled_width_ && nv >= 0 && nv < scaled_height_)
+//                     {
+//                         if (depth_img.at<float>(nv, nu) == 0.0f)
+//                         {
+//                             depth_img.at<float>(nv, nu) = static_cast<float>(camera_point.z);
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
+//     return depth_img;
+// }
+
+pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredCloud(const pcl::PointCloud<pcl::PointXYZ> &cloud_in_cam, const cv::Mat &color_img)
+{
+    // 防御性编程，确保输入有效
+    if (cloud_in_cam.empty() || color_img.empty()) 
+        return pcl::PointCloud<pcl::PointXYZRGB>();
+
+    pcl_wait_pub.reset(new pcl::PointCloud<pcl::PointXYZ>());
+    PointCloudXYZRGB::Ptr laserCloudWorldRGB(new PointCloudXYZRGB());
+
+    static int pub_num = 1;
+    pcl_wait_pub->clear();
+    // *pcl_wait_pub += *cloud_in_cam;
+
+    pcl_wait_pub->points.insert(
+    pcl_wait_pub->points.end(),
+    cloud_in_cam.points.begin(),
+    cloud_in_cam.points.end()
+    );
+
+    // 处理单帧数据，也可以设置其他步长
+    if(pub_num == 1)
+    {
+      pub_num = 1;
+      size_t size = pcl_wait_pub->points.size();
+
+      // 预分配内存提高性能
+      laserCloudWorldRGB->reserve(size);
+      cv::Mat img_undistorted;
+
+      // 对输入图像进行畸变矫正
+      cv::remap(color_img, img_undistorted, inv_map_x_, inv_map_y_, cv::INTER_LINEAR);
+
+      for (size_t i = 0; i < size; i++)
+      {
+
+        // 构建彩色点云容器并在后面赋值RGB属性
+        pcl::PointXYZRGB pointRGB;
+        pointRGB.x = pcl_wait_pub->points[i].x;
+        pointRGB.y = pcl_wait_pub->points[i].y;
+        pointRGB.z = pcl_wait_pub->points[i].z;
+        
+        // 相机坐标系下的点云
+        Eigen::Vector3d p_f(pcl_wait_pub->points[i].x, pcl_wait_pub->points[i].y, pcl_wait_pub->points[i].z);
+        
+        // 筛选相机前方的点云
+        if (p_f[2] < 0) continue;
+
+        // 将点投影到RGB图像的像素坐标
+        
+        // 透视投影公式，归一化投影标出像素矩阵
+        // int u = static_cast<int>(std::round(pcl_wait_pub->points[i].x / pcl_wait_pub->points[i].z));
+        // int v = static_cast<int>(std::round(pcl_wait_pub->points[i].y / pcl_wait_pub->points[i].z));
+
+        double u = params_.u0 + (params_.A11 * pcl_wait_pub->points[i].x + params_.A12 * pcl_wait_pub->points[i].y) / pcl_wait_pub->points[i].z;
+        double v = params_.v0 + (params_.A22 * pcl_wait_pub->points[i].y) / pcl_wait_pub->points[i].z;
+
+        Eigen::Vector2d p_c(u, v);
+        
+        // 判断pc对应的像素点是否在图像范围内
+        if (u >= 0 && u < img_undistorted.cols && v >= 0 && v < img_undistorted.rows)
+        {
+           Eigen::Vector3f pixel = getInterpolatedPixel(img_undistorted, p_c);
+           pointRGB.r = pixel[2];
+           pointRGB.g = pixel[1];
+           pointRGB.b = pixel[0];
+
+           // 剔除距离过近的彩色点云
+           if (p_f.norm() > blind_rgb_points) laserCloudWorldRGB->push_back(pointRGB);
         }
+      }
+    }
+    else
+    {
+      pub_num++;
     }
 
-    cloud_colored.width = cloud_colored.points.size();
-    cloud_colored.height = 1;
-    cloud_colored.is_dense = false;
+    return *laserCloudWorldRGB;;
+}
 
-    return cloud_colored;
+Eigen::Vector3f PointCloudToDepthConverter::getInterpolatedPixel(cv::Mat img, Eigen::Vector2d pc)
+{
+
+    int width = img.cols;
+    int height = img.rows;
+
+    const float u_ref = pc[0];
+    const float v_ref = pc[1];
+    const int u_ref_i = floorf(pc[0]);
+    const int v_ref_i = floorf(pc[1]);
+    const float subpix_u_ref = (u_ref - u_ref_i);
+    const float subpix_v_ref = (v_ref - v_ref_i);
+    const float w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
+    const float w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
+    const float w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
+    const float w_ref_br = subpix_u_ref * subpix_v_ref;
+    uint8_t *img_ptr = (uint8_t *)img.data + ((v_ref_i)*width + (u_ref_i)) * 3;
+    float B = w_ref_tl * img_ptr[0] + w_ref_tr * img_ptr[0 + 3] + w_ref_bl * img_ptr[width * 3] + w_ref_br * img_ptr[width * 3 + 0 + 3];
+    float G = w_ref_tl * img_ptr[1] + w_ref_tr * img_ptr[1 + 3] + w_ref_bl * img_ptr[1 + width * 3] + w_ref_br * img_ptr[width * 3 + 1 + 3];
+    float R = w_ref_tl * img_ptr[2] + w_ref_tr * img_ptr[2 + 3] + w_ref_bl * img_ptr[2 + width * 3] + w_ref_br * img_ptr[width * 3 + 2 + 3];
+    Eigen::Vector3f pixel(B, G, R);
+    return pixel;
 }
 
 std::pair<bool, std::string> PointCloudToDepthConverter::validateInputs(
