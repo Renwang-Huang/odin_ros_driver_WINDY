@@ -437,7 +437,7 @@ pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredClo
         // 透视投影公式，归一化投影标出像素矩阵
         // int u = static_cast<int>(std::round(pcl_wait_pub->points[i].x / pcl_wait_pub->points[i].z));
         // int v = static_cast<int>(std::round(pcl_wait_pub->points[i].y / pcl_wait_pub->points[i].z));
-
+   
         double u = params_.u0 + (params_.A11 * pcl_wait_pub->points[i].x + params_.A12 * pcl_wait_pub->points[i].y) / pcl_wait_pub->points[i].z;
         double v = params_.v0 + (params_.A22 * pcl_wait_pub->points[i].y) / pcl_wait_pub->points[i].z;
 
@@ -464,6 +464,7 @@ pcl::PointCloud<pcl::PointXYZRGB> PointCloudToDepthConverter::generateColoredClo
     return *laserCloudWorldRGB;;
 }
 
+// 对于颜色的双线性差值，测试发现由于只对于颜色产生影响，实际发挥的作用很有限
 Eigen::Vector3f PointCloudToDepthConverter::getInterpolatedPixel(cv::Mat img, Eigen::Vector2d pc)
 {
 
@@ -488,6 +489,7 @@ Eigen::Vector3f PointCloudToDepthConverter::getInterpolatedPixel(cv::Mat img, Ei
     return pixel;
 }
 
+// 参数校验函数
 std::pair<bool, std::string> PointCloudToDepthConverter::validateInputs(
     const pcl::PointCloud<pcl::PointXYZ> &cloud, const cv::Mat &image)
 {
@@ -506,9 +508,9 @@ std::pair<bool, std::string> PointCloudToDepthConverter::validateInputs(
         return {false, "Invalid camera intrinsics"};
     }
 
-    return {true, ""};
+    return {true, "点云,图像和相机参数验证通过"};
 }
-
+ 
 void PointCloudToDepthConverter::updateCameraParams(const CameraParams &params)
 {
     params_ = params;

@@ -1,5 +1,3 @@
-
-
 #include "rawCloudRender.h"
 #include <yaml-cpp/yaml.h>
 #include <iostream>
@@ -19,7 +17,6 @@ struct ValidPointInfo {
     int v;
 };
 
-
 namespace GlobalCameraParams {
     float g_fx = 0.0f;
     float g_fy = 0.0f;
@@ -34,6 +31,7 @@ namespace GlobalCameraParams {
     float g_k7 = 0.0f;
     Eigen::Matrix4f g_T_camera_lidar = Eigen::Matrix4f::Identity();
 }
+
 bool raw_debug=0;
 bool rawCloudRender::init(const std::string& yamlFilePath) {
     YAML::Node config;
@@ -64,6 +62,7 @@ bool rawCloudRender::init(const std::string& yamlFilePath) {
         std::cerr << "Error: Missing transformation matrix node '" << tcl_node_name << "'" << std::endl;
         return false;
     }
+
     YAML::Node tclNode = config[tcl_node_name];
     if (tclNode.size() != 16) {
         std::cerr << "Error: Transformation matrix must be 4x4 (16 elements)" << std::endl;
@@ -112,6 +111,7 @@ bool rawCloudRender::init(const std::string& yamlFilePath) {
     
     return true;
 }
+
 void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image, 
                            capture_Image_List_t* pcd_stream, 
                            int pcdIdx, 
@@ -261,6 +261,7 @@ void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image,
 			  << (100.0 * valid_count / total_points) << "%)" << std::endl;
          }
 }
+
 void rawCloudRender::print_camera_calib() {
     std::cout << model_type_ << std::endl;
     std::cout << image_width_ << std::endl;
