@@ -1,16 +1,3 @@
-/*
-Copyright 2025 Manifold Tech Ltd.(www.manifoldtech.com.co)
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 #include "host_sdk_sample.h"
 #include "yaml_parser.h"
 #include "rawCloudRender.h"
@@ -998,7 +985,10 @@ static void lidar_device_callback(const lidar_device_info_t* device, bool attach
             #endif
 
             g_usb_version_error = true;
-            system("pkill -f rviz");
+            {
+                int ret = system("pkill -f rviz");
+                (void)ret;
+            }
             exit(1);
             return;
         }
@@ -1103,7 +1093,10 @@ static void lidar_device_callback(const lidar_device_info_t* device, bool attach
             #else
                 ROS_ERROR("Failed to get device firmware version, potential incompatible, please upgrade device firmware and retry.");
             #endif
-            system("pkill -f rviz");
+            {
+                int ret = system("pkill -f rviz");
+                (void)ret;
+            }
             exit(1);
         }
         else {
@@ -1161,7 +1154,10 @@ static void lidar_device_callback(const lidar_device_info_t* device, bool attach
                 #else
                     ROS_WARN("Device state: streaming, this should not happen, exitting...");
                 #endif
-                system("pkill -f rviz");
+                {
+                    int ret = system("pkill -f rviz");
+                    (void)ret;
+                }
                 exit(1);
                 break;
             case LIDAR_DEVICE_STREAM_STOPPED:
@@ -1451,7 +1447,7 @@ int main(int argc, char *argv[])
     try {
     #ifdef ROS2
         std::string package_path = get_package_source_directory();
-        std::cout << "package_path: " << package_path << std::endl;
+        // std::cout << "package_path: " << package_path << std::endl;
     #else
     	std::string package_path = get_package_share_path("odin_ros_driver");
     #endif
@@ -1461,11 +1457,11 @@ int main(int argc, char *argv[])
         // Initialize command file path to /tmp/odin_command.txt
         g_command_file_path = "/tmp/odin_command.txt";
 
-        #ifdef ROS2
-            RCLCPP_INFO(rclcpp::get_logger("init"), "Command file path set to: %s", g_command_file_path.c_str());
-        #else
-            ROS_INFO("Command file path set to: %s", g_command_file_path.c_str());
-        #endif
+        // #ifdef ROS2
+        //     RCLCPP_INFO(rclcpp::get_logger("init"), "Command file path set to: %s", g_command_file_path.c_str());
+        // #else
+        //     ROS_INFO("Command file path set to: %s", g_command_file_path.c_str());
+        // #endif
 
         g_parser = std::make_shared<odin_ros_driver::YamlParser>(config_file);
         if (!g_parser->loadConfig()) {
