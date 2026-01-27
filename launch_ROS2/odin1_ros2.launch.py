@@ -1,5 +1,5 @@
-
 # USAGE: ros2 launch odin_ros_driver odin1_ros2.launch.py
+
 import os
 import yaml 
 from ament_index_python.packages import get_package_share_directory
@@ -50,21 +50,22 @@ def generate_launch_description():
         output='screen',
         parameters=[pcd2depth_params]
     )
+
     # Create RViz2 node - loads specified configuration file
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        output='screen',
-        arguments=['-d', LaunchConfiguration('rviz_config')]
-    )
+    # rviz_node = Node(
+    #     package='rviz2',
+    #     executable='rviz2',
+    #     name='rviz2',
+    #     output='screen',
+    #     arguments=['-d', LaunchConfiguration('rviz_config')]
+    # )
     
     # Create launch description
     ld = LaunchDescription()
     ld.add_action(config_file_arg)
-    ld.add_action(rviz_config_arg)  # Add RViz configuration argument
+    # ld.add_action(rviz_config_arg)  # Add RViz configuration argument
     ld.add_action(host_sdk_node)
     ld.add_action(pcd2depth_node)
-    ld.add_action(rviz_node)  # Add RViz node
+    # ld.add_action(rviz_node)        # Add RViz node
     
     return ld
