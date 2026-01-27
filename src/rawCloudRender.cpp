@@ -1,16 +1,3 @@
-/*
-Copyright 2025 Manifold Tech Ltd.(www.manifoldtech.com.co)
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 #include "rawCloudRender.h"
 #include <yaml-cpp/yaml.h>
 #include <iostream>
@@ -30,7 +17,6 @@ struct ValidPointInfo {
     int v;
 };
 
-
 namespace GlobalCameraParams {
     float g_fx = 0.0f;
     float g_fy = 0.0f;
@@ -43,9 +29,13 @@ namespace GlobalCameraParams {
     float g_k5 = 0.0f;
     float g_k6 = 0.0f;
     float g_k7 = 0.0f;
+
+    // 4x4 transformation matrix (T_camera_lidar)
     Eigen::Matrix4f g_T_camera_lidar = Eigen::Matrix4f::Identity();
 }
+
 bool raw_debug=0;
+
 bool rawCloudRender::init(const std::string& yamlFilePath) {
     YAML::Node config;
     try {
@@ -104,18 +94,20 @@ bool rawCloudRender::init(const std::string& yamlFilePath) {
         tclNode[12].as<float>(), tclNode[13].as<float>(), tclNode[14].as<float>(), tclNode[15].as<float>();
 
     // === Display key parameters concisely ===
-    std::cout << "=== Camera Calibration Parameters ===" << std::endl;
-    std::cout << "Intrinsics:" << std::endl;
-    std::cout << "  fx: " << GlobalCameraParams::g_fx 
-              << ", fy: " << GlobalCameraParams::g_fy
-              << ", cx: " << GlobalCameraParams::g_cx 
-              << ", cy: " << GlobalCameraParams::g_cy << std::endl;
-    std::cout << "Distortion: k2=" << GlobalCameraParams::g_k2 
-              << ", k3=" << GlobalCameraParams::g_k3 << std::endl;
+    // std::cout << "=== Camera Calibration Parameters ===" << std::endl;
+    // std::cout << "Intrinsics:" << std::endl;
+    // std::cout << "  fx: " << GlobalCameraParams::g_fx 
+    //           << ", fy: " << GlobalCameraParams::g_fy
+    //           << ", cx: " << GlobalCameraParams::g_cx 
+    //           << ", cy: " << GlobalCameraParams::g_cy << std::endl;
+    // std::cout << "Distortion: k2=" << GlobalCameraParams::g_k2 
+    //           << ", k3=" << GlobalCameraParams::g_k3 << std::endl;
     
+    // Extrinsics: Translation and Rotation
     Eigen::Vector3f translation = GlobalCameraParams::g_T_camera_lidar.block<3,1>(0,3);
     Eigen::Matrix3f rotation = GlobalCameraParams::g_T_camera_lidar.block<3,3>(0,0);
-    std::cout << "Extrinsics:" << std::endl;
+
+    // std::cout << "Extrinsics:" << std::endl;
     std::cout << "  Translation: [" << translation.x() << ", " 
               << translation.y() << ", " << translation.z() << "]" << std::endl;
     std::cout << "  Rotation (euler angles): " 
@@ -123,6 +115,7 @@ bool rawCloudRender::init(const std::string& yamlFilePath) {
     
     return true;
 }
+
 void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image, 
                            capture_Image_List_t* pcd_stream, 
                            int pcdIdx, 
@@ -157,6 +150,16 @@ void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image,
         }
         return true;
     }();
+
+    // Use static flag to initialize the dist_table
+    // static bool initialized = false;
+    // if (!initialized) {
+    //     for (size_t i=0; i<dist_table.size(); ++i) {
+    //         float theta = i * (M_PI/2) / dist_table.size();
+    //         dist_table[i] = theta*(1 + theta*(k2 + theta*(k3 + theta*(k4 + theta*(k5 + theta*(k6 + theta*k7))))));
+    //     }
+    //     initialized = true;
+    // }
     
     // Get point cloud data (direct access)
     if (!pcd_stream || pcdIdx < 0 || pcdIdx >= 10) {
@@ -212,11 +215,13 @@ void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image,
         const float y1_sq = y1*y1;
         const float z1_sq = z1*z1;
         
+        // Add more point cloud filtering logic here
+
         const float norm = std::sqrt(x1_sq + y1_sq + z1_sq);
-        if (norm < 1e-7f) continue;
+        if (norm < 0.1f) continue;   // Filter points closer than 0.1m
         
         const float r = std::sqrt(x1_sq + y1_sq);
-        if (r < 1e-7f) continue;
+        if (r < 1e-7f) continue;    // Filter points with very small radius
         
         const float cost = z1 / norm;
         const float theta = std::acos(cost);
@@ -263,37 +268,39 @@ void rawCloudRender::render(std::vector<std::vector<float>>& rgb_image,
             }
         }
     }
-       // Resize output
-    	rgbCloud_flat.resize(output_ptr - rgbCloud_flat.data());
-        if(raw_debug)
-         {
-		std::cout << "Render completed: " << total_points << " points processed, " 
-			  << valid_count << " valid points (" 
-			  << (100.0 * valid_count / total_points) << "%)" << std::endl;
-         }
+    
+    // Resize output
+    rgbCloud_flat.resize(output_ptr - rgbCloud_flat.data());
+    if(raw_debug)
+    {
+        std::cout << "Render completed: " << total_points << " points processed, " 
+                  << valid_count << " valid points (" 
+                  << (100.0 * valid_count / total_points) << "%)" << std::endl;
+    }
 }
+
 void rawCloudRender::print_camera_calib() {
     std::cout << model_type_ << std::endl;
     std::cout << image_width_ << std::endl;
     std::cout << image_height_ << std::endl;
 
-    std::cout << "T_camera_lidar" << std::endl;
-    std::cout << T_camera_lidar_(0,0) << " " << T_camera_lidar_(0,1) << " " << T_camera_lidar_(0,2) << " " << T_camera_lidar_(0,3) << std::endl;
-    std::cout << T_camera_lidar_(1,0) << " " << T_camera_lidar_(1,1) << " " << T_camera_lidar_(1,2) << " " << T_camera_lidar_(1,3) << std::endl;
-    std::cout << T_camera_lidar_(2,0) << " " << T_camera_lidar_(2,1) << " " << T_camera_lidar_(2,2) << " " << T_camera_lidar_(2,3) << std::endl;
-    std::cout << T_camera_lidar_(3,0) << " " << T_camera_lidar_(3,1) << " " << T_camera_lidar_(3,2) << " " << T_camera_lidar_(3,3) << std::endl;
+    // std::cout << "T_camera_lidar" << std::endl;
+    // std::cout << T_camera_lidar_(0,0) << " " << T_camera_lidar_(0,1) << " " << T_camera_lidar_(0,2) << " " << T_camera_lidar_(0,3) << std::endl;
+    // std::cout << T_camera_lidar_(1,0) << " " << T_camera_lidar_(1,1) << " " << T_camera_lidar_(1,2) << " " << T_camera_lidar_(1,3) << std::endl;
+    // std::cout << T_camera_lidar_(2,0) << " " << T_camera_lidar_(2,1) << " " << T_camera_lidar_(2,2) << " " << T_camera_lidar_(2,3) << std::endl;
+    // std::cout << T_camera_lidar_(3,0) << " " << T_camera_lidar_(3,1) << " " << T_camera_lidar_(3,2) << " " << T_camera_lidar_(3,3) << std::endl;
 
-    std::cout << "cam" << std::endl;
-    std::cout << k2_ << std::endl;
-    std::cout << k3_ << std::endl;
-    std::cout << k4_ << std::endl;
-    std::cout << k5_ << std::endl;
-    std::cout << k6_ << std::endl;
-    std::cout << k7_ << std::endl;
+    // std::cout << "cam" << std::endl;
+    // std::cout << k2_ << std::endl;
+    // std::cout << k3_ << std::endl;
+    // std::cout << k4_ << std::endl;
+    // std::cout << k5_ << std::endl;
+    // std::cout << k6_ << std::endl;
+    // std::cout << k7_ << std::endl;
 
-    std::cout << A11_fx_ << std::endl;
-    std::cout << A12_skew_ << std::endl;
-    std::cout << A22_fy_ << std::endl;
-    std::cout << u0_cx_ << std::endl;
-    std::cout << v0_cy_ << std::endl;    
+    // std::cout << A11_fx_ << std::endl;
+    // std::cout << A12_skew_ << std::endl;
+    // std::cout << A22_fy_ << std::endl;
+    // std::cout << u0_cx_ << std::endl;
+    // std::cout << v0_cy_ << std::endl;    
 }
