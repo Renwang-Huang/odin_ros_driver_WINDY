@@ -2,3 +2,8 @@ recorddata/
 /config/calib.yaml
 /log
 /map
+
+/.db
+/.db-shm
+/.db-wal
+.vscode/
